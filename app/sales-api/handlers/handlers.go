@@ -2,17 +2,17 @@
 package handlers
 
 import (
-	"github.com/petersveter108/sales-service/business/mid"
 	"log"
 	"net/http"
 	"os"
 
+	"github.com/petersveter108/sales-service/business/mid"
 	"github.com/petersveter108/sales-service/foundation/web"
 )
 
 // API constructs a http.Handler with all application routes defined.
 func API(build string, shutdown chan os.Signal, log *log.Logger) *web.App {
-	app := web.NewApp(shutdown, mid.Logger(log))
+	app := web.NewApp(shutdown, mid.Logger(log), mid.Errors(log))
 
 	check := check{
 		log: log,

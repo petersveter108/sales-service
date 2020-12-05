@@ -4,7 +4,6 @@ import (
 	"context"
 	"expvar"
 	"fmt"
-	"github.com/petersveter108/sales-service/app/sales-api/handlers"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ardanlabs/conf"
+	"github.com/petersveter108/sales-service/app/sales-api/handlers"
 	"github.com/pkg/errors"
 )
 

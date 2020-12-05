@@ -2,9 +2,10 @@ package handlers
 
 import (
 	"context"
-	"github.com/petersveter108/sales-service/foundation/web"
 	"log"
 	"net/http"
+
+	"github.com/petersveter108/sales-service/foundation/web"
 )
 
 type check struct {

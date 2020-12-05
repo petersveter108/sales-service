@@ -2,10 +2,11 @@ package mid
 
 import (
 	"context"
-	"github.com/petersveter108/sales-service/foundation/web"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/petersveter108/sales-service/foundation/web"
 )
 
 // Logger writes some information about the request to the logs in the
