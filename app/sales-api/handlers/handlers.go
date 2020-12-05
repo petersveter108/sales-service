@@ -2,7 +2,7 @@
 package handlers
 
 import (
-	"github.com/petersveter108/sales-service/business/middleware"
+	"github.com/petersveter108/sales-service/business/mid"
 	"log"
 	"net/http"
 	"os"
@@ -12,7 +12,7 @@ import (
 
 // API constructs a http.Handler with all application routes defined.
 func API(build string, shutdown chan os.Signal, log *log.Logger) *web.App {
-	app := web.NewApp(shutdown, middleware.Logger)
+	app := web.NewApp(shutdown, mid.Logger(log))
 
 	check := check{
 		log: log,
