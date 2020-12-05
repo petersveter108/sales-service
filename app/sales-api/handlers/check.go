@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
+	"github.com/petersveter108/sales-service/foundation/web"
 	"log"
 	"net/http"
 )
@@ -19,5 +19,5 @@ func (c check) readiness(ctx context.Context, w http.ResponseWriter, r *http.Req
 	}
 	log.Println(r, status)
 
-	return json.NewEncoder(w).Encode(status)
+	return web.Respond(ctx, w, status, http.StatusOK)
 }
