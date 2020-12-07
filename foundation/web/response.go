@@ -62,7 +62,7 @@ func RespondError(ctx context.Context, w http.ResponseWriter, err error) error {
 		return nil
 	}
 
-	// If not, the handler sent any arbitraty error value so use 500.
+	// If not, the handler sent any arbitrary error value so use 500.
 	er := ErrorResponse{
 		Error: http.StatusText(http.StatusInternalServerError),
 	}
