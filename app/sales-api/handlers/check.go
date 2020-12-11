@@ -2,33 +2,44 @@ package handlers
 
 import (
 	"context"
-	"log"
+	"github.com/jmoiron/sqlx"
+	"github.com/petersveter108/sales-service/foundation/database"
 	"net/http"
 	"os"
 
 	"github.com/petersveter108/sales-service/foundation/web"
 )
 
-type check struct {
+type checkGroup struct {
 	build string
-	log   *log.Logger
+	db    *sqlx.DB
 }
 
-func (c check) readiness(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-	status := struct {
-		Status string
-	}{
-		Status: "OK",
+// readiness checks if the database is ready and if not will return a 500 status.
+// Do not respond by just returning an error because further up in the call
+// stack it will interpret that as a non-trusted error.
+func (cg checkGroup) readiness(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	status := "ok"
+	statusCode := http.StatusOK
+	if err := database.StatusCheck(ctx, cg.db); err != nil {
+		status = "db not ready"
+		statusCode = http.StatusInternalServerError
 	}
 
-	return web.Respond(ctx, w, status, http.StatusOK)
+	health := struct {
+		Status string `json:"status"`
+	}{
+		Status: status,
+	}
+
+	return web.Respond(ctx, w, health, statusCode)
 }
 
 // liveness returns simple status info if the service is alive. If the
 // app is deployed to a Kubernetes cluster, it will also return pod, node, and
 // namespace details via Downward API. The Kubernetes environment variables
 // need to be set within your Pod/Deployment manifest.
-func (c check) liveness(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+func (cg checkGroup) liveness(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	host, err := os.Hostname()
 	if err != nil {
 		host = "unavailable"
@@ -44,7 +55,7 @@ func (c check) liveness(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		Namespace string `json:"namespace,omitempty"`
 	}{
 		Status:    "up",
-		Build:     c.build,
+		Build:     cg.build,
 		Host:      host,
 		Pod:       os.Getenv("KUBERNETES_PODNAME"),
 		PodIP:     os.Getenv("KUBERNETES_NAMESPACE_POD_IP"),

@@ -6,25 +6,26 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/petersveter108/sales-service/business/auth"
 	"github.com/petersveter108/sales-service/business/mid"
 	"github.com/petersveter108/sales-service/foundation/web"
 )
 
 // API constructs a http.Handler with all application routes defined.
-func API(build string, shutdown chan os.Signal, log *log.Logger, a *auth.Auth) *web.App {
+func API(build string, shutdown chan os.Signal, log *log.Logger, a *auth.Auth, db *sqlx.DB) *web.App {
 
 	// Construct the web.App which holds all routes as well as common Middleware.
 	app := web.NewApp(shutdown, mid.Logger(log), mid.Errors(log), mid.Metrics(), mid.Panics(log))
 
-	check := check{
+	cg := checkGroup{
 		build: build,
-		log:   log,
+		db:    db,
 	}
 
-	//app.Handle(http.MethodGet, "/readiness", check.readiness, mid.Authenticate(a), mid.Authorize(auth.RoleAdmin))
-	app.Handle(http.MethodGet, "/readiness", check.readiness)
-	app.Handle(http.MethodGet, "/liveness", check.liveness)
+	//app.Handle(http.MethodGet, "/readiness", cg.readiness, mid.Authenticate(a), mid.Authorize(auth.RoleAdmin))
+	app.Handle(http.MethodGet, "/readiness", cg.readiness)
+	app.Handle(http.MethodGet, "/liveness", cg.liveness)
 
 	return app
 }
