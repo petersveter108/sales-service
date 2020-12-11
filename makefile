@@ -17,7 +17,7 @@ sales-api:
 # Running from within k8s/dev
 
 kind-up:
-	kind create cluster --image kindest/node:v1.19.4 --name peter-starter-cluster --config zarf/k8s/dev/kind-config.yaml
+	kind create cluster --image kindest/node:v1.20.0 --name peter-starter-cluster --config zarf/k8s/dev/kind-config.yaml
 
 kind-down:
 	kind delete cluster --name peter-starter-cluster
@@ -32,10 +32,6 @@ kind-update: sales-api
 	kind load docker-image sales-api-amd64:1.0 --name peter-starter-cluster
 	kubectl delete pods -lapp=sales-api
 
-#kind-metrics: metrics
-#	kind load docker-image metrics-amd64:1.0 --name peter-starter-cluster
-#	kubectl delete pods -lapp=sales-api
-
 kind-logs:
 	kubectl logs -lapp=sales-api --all-containers=true -f
 
@@ -46,15 +42,20 @@ kind-status:
 kind-status-full:
 	kubectl describe pod -lapp=sales-api
 
-#kind-shell:
-#	kubectl exec -it $(shell kubectl get pods | grep sales-api | cut -c1-26) --container app -- /bin/sh
-#
-#kind-database:
-#	# ./admin --db-disable-tls=1 migrate
-#	# ./admin --db-disable-tls=1 seed
-#
-#kind-delete:
-#	kustomize build zarf/k8s/dev | kubectl delete -f -
+kind-shell:
+	kubectl exec -it $(shell kubectl get pods | grep sales-api | cut -c1-26) --container app -- /bin/sh
+
+kind-delete:
+	kustomize build zarf/k8s/dev | kubectl delete -f -
+
+# ==============================================================================
+# Administration
+
+migrate:
+	go run app/sales-admin/main.go migrate
+
+seed: migrate
+	go run app/sales-admin/main.go seed
 
 # ==============================================================================
 

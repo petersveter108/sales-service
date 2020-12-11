@@ -33,4 +33,4 @@ _testmain.go
 *.exe
 
 # Auth related files
-*.pem
+#*.pem

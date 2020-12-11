@@ -1,4 +1,4 @@
-// Package database provides support for access the databae.
+// Package database provides support for access the database.
 package database
 
 import (
@@ -28,7 +28,7 @@ func Open(cfg Config) (*sqlx.DB, error) {
 	}
 
 	q := make(url.Values)
-	q.Set("sslMode", sslMode)
+	q.Set("sslmode", sslMode)
 	q.Set("timezone", "utc")
 
 	u := url.URL{
