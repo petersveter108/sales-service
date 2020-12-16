@@ -4,6 +4,7 @@ package user
 import (
 	"context"
 	"database/sql"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/petersveter108/sales-service/business/auth"
@@ -80,7 +81,7 @@ func (u User) Create(ctx context.Context, traceID string, nu NewUser, now time.T
 
 // Update replaces a user document in the database.
 func (u User) Update(ctx context.Context, traceID string, claims auth.Claims, userID string, uu UpdateUser, now time.Time) error {
-	usr, err := u.RetrieveById(ctx, traceID, claims, userID)
+	usr, err := u.RetrieveByID(ctx, traceID, claims, userID)
 	if err != nil {
 		return err
 	}
@@ -137,11 +138,7 @@ func (u User) Delete(ctx context.Context, traceID string, claims auth.Claims, us
 		return ErrForbidden
 	}
 
-	const q = `
-	DELETE FROM
-		users
-	WHERE
-		user_id = $1`
+	const q = `DELETE FROM users WHERE user_id = $1`
 
 	u.log.Printf("%s: %s: %s", traceID, "user.Delete",
 		database.Log(q, userID),
@@ -156,15 +153,7 @@ func (u User) Delete(ctx context.Context, traceID string, claims auth.Claims, us
 
 // Retrieve retrieves a list of existing users from the database.
 func (u User) Retrieve(ctx context.Context, traceID string, pageNumber int, rowsPerPage int) ([]Info, error) {
-	const q = `
-	SELECT
-		*
-	FROM
-		users
-	ORDER BY
-		user_id
-	OFFSET $1 ROWS FETCH NEXT $2 ROWS ONLY`
-
+	const q = `SELECT * FROM users ORDER BY user_id OFFSET $1 ROWS FETCH NEXT $2 ROWS ONLY`
 	offset := (pageNumber - 1) * rowsPerPage
 
 	u.log.Printf("%s: %s: %s", traceID, "user.Retrieve",
@@ -179,8 +168,8 @@ func (u User) Retrieve(ctx context.Context, traceID string, pageNumber int, rows
 	return users, nil
 }
 
-// RetrieveById gets the specified user from the database.
-func (u User) RetrieveById(ctx context.Context, traceID string, claims auth.Claims, userID string) (Info, error) {
+// RetrieveByID gets the specified user from the database.
+func (u User) RetrieveByID(ctx context.Context, traceID string, claims auth.Claims, userID string) (Info, error) {
 	if _, err := uuid.Parse(userID); err != nil {
 		return Info{}, ErrInvalidID
 	}
@@ -190,15 +179,9 @@ func (u User) RetrieveById(ctx context.Context, traceID string, claims auth.Clai
 		return Info{}, ErrForbidden
 	}
 
-	const q = `
-	SELECT
-		*
-	FROM
-		users
-	WHERE 
-		user_id = $1`
+	const q = `SELECT * FROM users WHERE user_id = $1`
 
-	u.log.Printf("%s: %s: %s", traceID, "user.RetrieveById",
+	u.log.Printf("%s: %s: %s", traceID, "user.RetrieveByID",
 		database.Log(q, userID),
 	)
 
@@ -213,17 +196,11 @@ func (u User) RetrieveById(ctx context.Context, traceID string, claims auth.Clai
 	return usr, nil
 }
 
-// QueryByEmail gets the specified user from the database by email.
-func (u User) QueryByEmail(ctx context.Context, traceID string, claims auth.Claims, email string) (Info, error) {
-	const q = `
-	SELECT
-		*
-	FROM
-		users
-	WHERE
-		email = $1`
+// RetrieveByEmail gets the specified user from the database by email.
+func (u User) RetrieveByEmail(ctx context.Context, traceID string, claims auth.Claims, email string) (Info, error) {
+	const q = `SELECT * FROM users WHERE email = $1`
 
-	u.log.Printf("%s: %s: %s", traceID, "user.QueryByEmail",
+	u.log.Printf("%s: %s: %s", traceID, "user.RetrieveByEmail",
 		database.Log(q, email),
 	)
 
@@ -241,4 +218,48 @@ func (u User) QueryByEmail(ctx context.Context, traceID string, claims auth.Clai
 	}
 
 	return usr, nil
+}
+
+// Authenticate finds a user by their email and verifies their password. On
+// success it returns a Claims Info representing this user. The claims can be
+// used to generate a token for future authentication.
+func (u User) Authenticate(ctx context.Context, traceID string, now time.Time, email, password string) (auth.Claims, error) {
+	const q = `SELECT * FROM users WHERE email = $1`
+
+	u.log.Printf("%s: %s: %s", traceID, "user.Authenticate",
+		database.Log(q, email),
+	)
+
+	var usr Info
+	if err := u.db.GetContext(ctx, &usr, q, email); err != nil {
+
+		// Normally we would return ErrNotFound in this scenario but we do not want
+		// to leak to an unauthenticated user which emails are in the system.
+		if err == sql.ErrNoRows {
+			return auth.Claims{}, ErrAuthenticationFailure
+		}
+
+		return auth.Claims{}, errors.Wrap(err, "selecting single user")
+	}
+
+	// Compare the provided password with the saved hash. Use the bcrypt
+	// comparison function so it is cryptographically secure.
+	if err := bcrypt.CompareHashAndPassword(usr.PasswordHash, []byte(password)); err != nil {
+		return auth.Claims{}, ErrAuthenticationFailure
+	}
+
+	// If we are this far the request is valid. Create some claims for the user
+	// and generate their token.
+	claims := auth.Claims{
+		StandardClaims: jwt.StandardClaims{
+			Issuer:    "service project",
+			Subject:   usr.ID,
+			Audience:  "students",
+			ExpiresAt: now.Add(time.Hour).Unix(),
+			IssuedAt:  now.Unix(),
+		},
+		Roles: usr.Roles,
+	}
+
+	return claims, nil
 }

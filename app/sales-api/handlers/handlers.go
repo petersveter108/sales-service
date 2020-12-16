@@ -2,6 +2,7 @@
 package handlers
 
 import (
+	"github.com/petersveter108/sales-service/business/data/user"
 	"log"
 	"net/http"
 	"os"
@@ -25,6 +26,18 @@ func API(build string, shutdown chan os.Signal, log *log.Logger, a *auth.Auth, d
 
 	app.Handle(http.MethodGet, "/readiness", cg.readiness)
 	app.Handle(http.MethodGet, "/liveness", cg.liveness)
+
+	// Register user management and authentication endpoints.
+	ug := userGroup{
+		user: user.New(log, db),
+		auth: a,
+	}
+	app.Handle(http.MethodGet, "/v1/users/:page/:rows", ug.retrieve, mid.Authenticate(a), mid.Authorize(auth.RoleAdmin))
+	app.Handle(http.MethodGet, "/v1/users/:id", ug.retrieveByID, mid.Authenticate(a))
+	app.Handle(http.MethodGet, "/v1/users/token/:kid", ug.token)
+	app.Handle(http.MethodPost, "/v1/users", ug.create, mid.Authenticate(a), mid.Authorize(auth.RoleAdmin))
+	app.Handle(http.MethodPut, "/v1/users/:id", ug.update, mid.Authenticate(a), mid.Authorize(auth.RoleAdmin))
+	app.Handle(http.MethodDelete, "/v1/users/:id", ug.delete, mid.Authenticate(a), mid.Authorize(auth.RoleAdmin))
 
 	return app
 }
